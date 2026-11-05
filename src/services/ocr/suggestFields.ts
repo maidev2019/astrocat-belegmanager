@@ -43,6 +43,11 @@ export function suggestFields(text:string):Suggestions{
   if(known)result.supplier="Kaufland";
   else if(headerLines.some(line=>/^K\s*$/i.test(line))&&headerLines.some(line=>/^Kauf\s*land\b/i.test(line)))result.supplier="Kaufland";
  }
+ // Clear company names in the first lines of a till receipt.
+ if(!result.supplier){
+  const company=top.find(line=>/^[\p{L}][\p{L}0-9 .&'-]{2,65}\s+(?:GmbH|UG|AG|e\.K\.)\b/iu.test(line));
+  if(company)result.supplier=company.trim();
+ }
  // Some invoices provide an explicit vendor line instead.
  const vendor=/(?:Verkäufer|Rechnungsaussteller|Aussteller)\s*:\s*(.{3,80}?)(?=\s+(?:Rechnungsdatum|Rechnungsnummer|Adresse|Straße|Strasse|Tel|E-Mail)\b|$)/i.exec(flat);
  if(vendor)result.supplier=vendor[1].trim();
