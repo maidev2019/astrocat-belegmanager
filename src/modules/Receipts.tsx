@@ -5,6 +5,7 @@ import { extractText } from "../services/ocr/extractText";
 import { suggestFields } from "../services/ocr/suggestFields";
 import { findDuplicate } from "../services/receipts/duplicates";
 import { combineReceiptPhotos } from "../services/receipts/combinePhotos";
+import { ReceiptPhotoList } from "./ReceiptPhotoList";
 
 const categories=["Rohwaren","Verpackung","Versand","Werbung","Software","Miete","Ausstattung","Sonstiges"];
 const payments=["Geschäftskonto","Privatkonto","Bargeld","Sonstiges"];
@@ -41,12 +42,24 @@ export function Receipts(){
   catch(e){setError(e instanceof Error?e.message:"Fotos konnten nicht kombiniert werden.");}
   finally{setPhotoBusy(false);}
  }
- async function removePhoto(index:number){
-  const next=photos.filter((_,i)=>i!==index);
+ async function applyPhotos(next:File[]){
   setPhotoBusy(true);setError("");
-  try{setFile(next.length?await combineReceiptPhotos(next):null);setPhotos(next);setScanText("");setScanStatus(next.length?"Fotos aktualisiert. Bitte OCR erneut starten.":"");}
-  catch(e){setError(e instanceof Error?e.message:"Foto konnte nicht entfernt werden.");}
+  try{
+   const combined=next.length?await combineReceiptPhotos(next):null;
+   setPhotos(next);setFile(combined);setScanText("");setDateHint("");setAmountHint("");
+   setScanStatus(next.length?"Reihenfolge aktualisiert. Bitte OCR erneut starten.":"");
+  }catch(e){setError(e instanceof Error?e.message:"Fotos konnten nicht aktualisiert werden.");}
   finally{setPhotoBusy(false);}
+ }
+ function movePhoto(index:number,direction:-1|1){
+  const target=index+direction;
+  if(target<0||target>=photos.length||photoBusy||scanning)return;
+  const next=[...photos];[next[index],next[target]]=[next[target],next[index]];
+  void applyPhotos(next);
+ }
+ function removePhoto(index:number){
+  if(photoBusy||scanning)return;
+  void applyPhotos(photos.filter((_,i)=>i!==index));
  }
  function edit(item:Receipt){setDetails(null);setEditing(item);setFields({supplier:item.supplier,date:item.date,amount:formatAmount(item.cents),category:item.category,payment:item.payment});setFile(null);setPhotos([]);setScanText("");setError("");window.scrollTo({top:0,behavior:"smooth"});}
  function cancelEdit(){setEditing(null);setFields(emptyFields());setFile(null);setPhotos([]);setError("");}
@@ -118,7 +131,7 @@ export function Receipts(){
  <form onSubmit={e=>void save(e)}>
  <div className="receipt-inputs">
  <label>{editing?"Originaldokument (unveränderlich)":"PDF oder einzelnes Foto"}<input type="file" disabled={!!editing||photoBusy} accept=".pdf,image/jpeg,image/png,image/webp" onChange={e=>onFileChange(e.target.files?.[0]??null)}/></label>
- {!editing&&<div className="photo-capture"><strong>Kassenbon mit mehreren Fotos aufnehmen</strong><p>Fotografiere den Bon abschnittsweise von oben nach unten. Die Abschnitte sollten sich leicht überlappen.</p><label>Foto aufnehmen oder hinzufügen<input type="file" accept="image/*" capture="environment" disabled={photoBusy||scanning} onChange={e=>{const selected=Array.from(e.target.files??[]);e.target.value="";void addPhotos(selected);}}/></label><label>Mehrere vorhandene Fotos auswählen<input type="file" accept="image/*" multiple disabled={photoBusy||scanning} onChange={e=>{const selected=Array.from(e.target.files??[]);e.target.value="";void addPhotos(selected);}}/></label>{photos.length>0&&<ol className="photo-list">{photos.map((photo,i)=><li key={i+"-"+photo.name}>{photo.name} <button type="button" disabled={photoBusy||scanning} onClick={()=>void removePhoto(i)}>Entfernen</button></li>)}</ol>}<small>Maximal 5 Fotos. Die Reihenfolge entspricht der Aufnahmereihenfolge. Für die Erkennung wird jedes Foto einzeln gelesen.</small></div>}
+ {!editing&&<div className="photo-capture"><strong>Kassenbon mit mehreren Fotos aufnehmen</strong><p>Fotografiere den Bon abschnittsweise von oben nach unten. Die Abschnitte sollten sich leicht überlappen.</p><label>Foto aufnehmen oder hinzufügen<input type="file" accept="image/*" capture="environment" disabled={photoBusy||scanning} onChange={e=>{const selected=Array.from(e.target.files??[]);e.target.value="";void addPhotos(selected);}}/></label><label>Mehrere vorhandene Fotos auswählen<input type="file" accept="image/*" multiple disabled={photoBusy||scanning} onChange={e=>{const selected=Array.from(e.target.files??[]);e.target.value="";void addPhotos(selected);}}/></label><ReceiptPhotoList photos={photos} busy={photoBusy||scanning} onMove={movePhoto} onRemove={removePhoto}/><small>Maximal 5 Fotos. Die Reihenfolge entspricht der Aufnahmereihenfolge. Für die Erkennung wird jedes Foto einzeln gelesen.</small></div>}
  </div>
  {file&&<div className="scan-panel"><label className="ocr-enhance"><input type="checkbox" checked={enhance} onChange={e=>setEnhance(e.target.checked)} disabled={scanning}/> Foto für blasses Thermopapier optimieren (Graustufen/Kontrast)</label><button type="button" disabled={scanning||busy||photoBusy} onClick={()=>void scan()}>{scanning?"Erkennung läuft …":"Text automatisch erkennen (OCR)"}</button>{scanStatus&&<p role="status">{scanStatus}</p>}{file.type.startsWith("image/")?<p>Bild ausgewählt: {file.name}</p>:<p>PDF ausgewählt: {file.name}</p>}{scanText&&<details><summary>Erkannten Text prüfen</summary><pre className="ocr-text">{scanText}</pre></details>}</div>}
  <label>Lieferant<input value={fields.supplier} onChange={e=>setField("supplier",e.target.value)} required/></label>
