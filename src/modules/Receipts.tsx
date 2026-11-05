@@ -22,6 +22,7 @@ export function Receipts(){
  const [preview,setPreview]=useState<string|null>(null);
  const [scanning,setScanning]=useState(false),[busy,setBusy]=useState(false);
  const [scanStatus,setScanStatus]=useState(""),[scanText,setScanText]=useState("");
+ const [enhance,setEnhance]=useState(false),[dateHint,setDateHint]=useState("");
  const [search,setSearch]=useState(""),[year,setYear]=useState("all"),[categoryFilter,setCategoryFilter]=useState("all"),[paymentFilter,setPaymentFilter]=useState("all");
  const [error,setError]=useState("");
  const [deleteTarget,setDeleteTarget]=useState<Receipt|null>(null),[deleteConfirmation,setDeleteConfirmation]=useState(""),[deleteError,setDeleteError]=useState("");
@@ -30,7 +31,7 @@ export function Receipts(){
  useEffect(()=>{void refresh();},[]);
  useEffect(()=>{if(!details)return;void getHistory(details.id).then(setHistory).catch(()=>setHistory([]));const url=URL.createObjectURL(details.file);setPreview(url);return ()=>{URL.revokeObjectURL(url);setPreview(null);};},[details]);
  function setField<K extends keyof Fields>(key:K,value:Fields[K]){setFields(old=>({...old,[key]:value}));}
- function onFileChange(next:File|null){setPhotos([]);setFile(next);setScanText("");setScanStatus("");setError("");}
+ function onFileChange(next:File|null){setPhotos([]);setFile(next);setScanText("");setScanStatus("");setDateHint("");setError("");}
  async function addPhotos(newPhotos:File[]){
   if(!newPhotos.length)return;
   const next=[...photos,...newPhotos];
@@ -59,16 +60,17 @@ export function Receipts(){
     const parts:string[]=[];
     for(let i=0;i<photos.length;i++){
      const index=i;
-     const result=await extractText(photos[i],message=>setScanStatus("Foto "+(index+1)+"/"+photos.length+": "+message));
+     const result=await extractText(photos[i],message=>setScanStatus("Foto "+(index+1)+"/"+photos.length+": "+message),enhance);
      parts.push(result.text);
     }
     text=parts.join("\n\n--- NÄCHSTER ABSCHNITT ---\n\n");
    }else{
-    const result=await extractText(file,setScanStatus);
+    const result=await extractText(file,setScanStatus,enhance);
     text=result.text;pageCount=result.pages;method=result.method;
    }
    setScanText(text);
    const suggestions=suggestFields(text);
+   setDateHint(suggestions.partialDate??"");
    setFields(old=>({...old,supplier:suggestions.supplier??"",date:suggestions.date??"",amount:suggestions.amount??""}));
    setScanStatus("Erkennung abgeschlossen ("+pageCount+" Abschnitt(e), "+method+"). Angaben kontrollieren, besonders Gesamtsumme und Datum.");
   }
@@ -117,9 +119,9 @@ export function Receipts(){
  <label>{editing?"Originaldokument (unveränderlich)":"PDF oder einzelnes Foto"}<input type="file" disabled={!!editing||photoBusy} accept=".pdf,image/jpeg,image/png,image/webp" onChange={e=>onFileChange(e.target.files?.[0]??null)}/></label>
  {!editing&&<div className="photo-capture"><strong>Kassenbon mit mehreren Fotos aufnehmen</strong><p>Fotografiere den Bon abschnittsweise von oben nach unten. Die Abschnitte sollten sich leicht überlappen.</p><label>Foto aufnehmen oder hinzufügen<input type="file" accept="image/*" capture="environment" disabled={photoBusy||scanning} onChange={e=>{const selected=Array.from(e.target.files??[]);e.target.value="";void addPhotos(selected);}}/></label><label>Mehrere vorhandene Fotos auswählen<input type="file" accept="image/*" multiple disabled={photoBusy||scanning} onChange={e=>{const selected=Array.from(e.target.files??[]);e.target.value="";void addPhotos(selected);}}/></label>{photos.length>0&&<ol className="photo-list">{photos.map((photo,i)=><li key={i+"-"+photo.name}>{photo.name} <button type="button" disabled={photoBusy||scanning} onClick={()=>void removePhoto(i)}>Entfernen</button></li>)}</ol>}<small>Maximal 5 Fotos. Die Reihenfolge entspricht der Aufnahmereihenfolge. Für die Erkennung wird jedes Foto einzeln gelesen.</small></div>}
  </div>
- {file&&<div className="scan-panel"><button type="button" disabled={scanning||busy||photoBusy} onClick={()=>void scan()}>{scanning?"Erkennung läuft …":"Text automatisch erkennen (OCR)"}</button>{scanStatus&&<p role="status">{scanStatus}</p>}{file.type.startsWith("image/")?<p>Bild ausgewählt: {file.name}</p>:<p>PDF ausgewählt: {file.name}</p>}{scanText&&<details><summary>Erkannten Text prüfen</summary><pre className="ocr-text">{scanText}</pre></details>}</div>}
+ {file&&<div className="scan-panel"><label className="ocr-enhance"><input type="checkbox" checked={enhance} onChange={e=>setEnhance(e.target.checked)} disabled={scanning}/> Foto für blasses Thermopapier optimieren (Graustufen/Kontrast)</label><button type="button" disabled={scanning||busy||photoBusy} onClick={()=>void scan()}>{scanning?"Erkennung läuft …":"Text automatisch erkennen (OCR)"}</button>{scanStatus&&<p role="status">{scanStatus}</p>}{file.type.startsWith("image/")?<p>Bild ausgewählt: {file.name}</p>:<p>PDF ausgewählt: {file.name}</p>}{scanText&&<details><summary>Erkannten Text prüfen</summary><pre className="ocr-text">{scanText}</pre></details>}</div>}
  <label>Lieferant<input value={fields.supplier} onChange={e=>setField("supplier",e.target.value)} required/></label>
- <label>Datum<input type="date" value={fields.date} onChange={e=>setField("date",e.target.value)} required/></label>
+ <label>Datum<input type="date" value={fields.date} onChange={e=>setField("date",e.target.value)} required/>{dateHint&&<small role="status">{dateHint} Bitte vollständiges Datum manuell ergänzen.</small>}</label>
  <label>Bruttobetrag (€)<input inputMode="decimal" value={fields.amount} onChange={e=>setField("amount",e.target.value)} required/></label>
  <label>Kategorie<select value={fields.category} onChange={e=>setField("category",e.target.value)}>{categories.map(x=><option key={x}>{x}</option>)}</select></label>
  <label>Bezahlt über<select value={fields.payment} onChange={e=>setField("payment",e.target.value)}>{payments.map(x=><option key={x}>{x}</option>)}</select></label>
