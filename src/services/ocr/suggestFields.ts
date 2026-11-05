@@ -1,5 +1,5 @@
 /** Conservative heuristics for flattened German invoice text. All suggestions need review. */
-export interface Suggestions { supplier?:string; date?:string; amount?:string; }
+export interface Suggestions { supplier?:string; date?:string; amount?:string; partialDate?:string; }
 const flatText=(s:string)=>s.replace(/\s+/g," ").trim();
 const months:Record<string,number>={januar:1,februar:2,märz:3,maerz:3,april:4,mai:5,juni:6,juli:7,august:8,september:9,oktober:10,november:11,dezember:12};
 function validDate(day:number,month:number,year:number):string|undefined{
@@ -62,6 +62,11 @@ export function suggestFields(text:string):Suggestions{
  else {
   const fallback=/\b(\d{1,2})\.(\d{1,2})\.(20\d{2})\b/.exec(flat);
   if(fallback)result.date=validDate(+fallback[1],+fallback[2],+fallback[3]);
+ }
+ // A month/day without a year is only a hint, never an inferred booking date.
+ if(!result.date){
+  const partial=/\b(\d{1,2})\.\s*(Januar|Februar|März|Maerz|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\b/i.exec(flat);
+  if(partial&&Number(partial[1])>=1&&Number(partial[1])<=31)result.partialDate=partial[1]+". "+partial[2]+" – Jahreszahl fehlt.";
  }
  // Till receipts can show "Summe 23,64", sometimes with OCR errors
  // (e.g. "1% 23,64"). Use the last short line containing a plausible
