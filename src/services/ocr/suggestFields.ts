@@ -23,6 +23,14 @@ export function suggestFields(text:string):Suggestions{
  // The company printed immediately before RECHNUNG is often the invoice issuer.
  const header=/^(.{3,80}?)\s+(?:RECHNUNG|INVOICE)\b/i.exec(flat);
  if(header)result.supplier=header[1].trim();
+ // Receipt headers often start with the shop name, before address and till data.
+ // Only apply this to typical till receipts, never override an invoice issuer.
+ if(!result.supplier&&/\\b(?:BON|KASSE|FILIALE|KARTENZAHLUNG|GESAMTBETRAG)\\b/i.test(flat)){
+  const lines=text.split(/\\r?\\n/).map(line=>line.trim()).filter(Boolean);
+  const first=lines[0]??"";
+  const shop=first.match(/^(.{3,65}?)(?=\\s+\\*{2,}|\\s+DEMO[- ]KASSENBON\\b|$)/i)?.[1]?.trim();
+  if(shop&&!/^(?:RECHNUNG|INVOICE|KASSENBON|BON|ARTIKEL)\\b/i.test(shop))result.supplier=shop;
+ }
  // Some invoices provide an explicit vendor line instead.
  const vendor=/(?:Verkäufer|Rechnungsaussteller|Aussteller)\s*:\s*(.{3,80}?)(?=\s+(?:Rechnungsdatum|Rechnungsnummer|Adresse|Straße|Strasse|Tel|E-Mail)\b|$)/i.exec(flat);
  if(vendor)result.supplier=vendor[1].trim();
