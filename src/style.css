@@ -6,3 +6,5 @@
 .archive-toggle{display:flex;align-items:center;gap:8px;margin-bottom:16px;font-size:13px}.archive-toggle input{width:auto}.audit-history{margin-top:20px;border-top:1px solid #e4e9f1;padding-top:16px}.audit-history li{margin:10px 0}.audit-history pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f5f7fb;padding:12px;border-radius:8px;font-size:12px}.audit-history details{margin-top:6px}
 
 .receipt-actions .danger-action{color:#b42318;font-weight:600}
+
+.delete-confirmation{border:2px solid #b42318;background:#fff9f8}.delete-confirmation label{max-width:420px}.delete-confirmation .form-actions{margin-top:16px}.danger-confirm{border:0;border-radius:9px;background:#b42318;color:white;padding:12px 17px}.danger-confirm:disabled{opacity:.45;cursor:not-allowed}
