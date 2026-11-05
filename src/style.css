@@ -20,3 +20,5 @@
 .receipt-inputs{align-items:start}
 .receipt-inputs>label{align-content:start;grid-template-rows:max-content max-content;align-self:start;gap:9px}
 .receipt-inputs input[type="file"]{height:auto;min-height:44px;align-self:start;background:#fff}
+
+.scan-panel .ocr-enhance{display:flex;align-items:center;gap:9px;margin-bottom:12px;font-weight:500}.scan-panel .ocr-enhance input{width:auto;min-height:0}.scan-panel .ocr-enhance+button{display:block}
