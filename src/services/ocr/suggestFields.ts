@@ -1,5 +1,5 @@
 /** Conservative heuristics for flattened German invoice text. All suggestions need review. */
-export interface Suggestions { supplier?:string; date?:string; amount?:string; partialDate?:string; }
+export interface Suggestions { supplier?:string; date?:string; amount?:string; partialDate?:string; amountHint?:string; }
 const flatText=(s:string)=>s.replace(/\s+/g," ").trim();
 const months:Record<string,number>={januar:1,februar:2,märz:3,maerz:3,april:4,mai:5,juni:6,juli:7,august:8,september:9,oktober:10,november:11,dezember:12};
 function validDate(day:number,month:number,year:number):string|undefined{
@@ -39,8 +39,9 @@ export function suggestFields(text:string):Suggestions{
  // Match only standalone names in the receipt header, not product descriptions.
  if(!result.supplier){
   const headerLines=lines.slice(0,8);
-  const known=headerLines.find(line=>/^kaufland\b/i.test(line));
+  const known=headerLines.find(line=>/^(?:kaufland|kauf\s+land)\b/i.test(line));
   if(known)result.supplier="Kaufland";
+  else if(headerLines.some(line=>/^K\s*$/i.test(line))&&headerLines.some(line=>/^Kauf\s*land\b/i.test(line)))result.supplier="Kaufland";
  }
  // Some invoices provide an explicit vendor line instead.
  const vendor=/(?:Verkäufer|Rechnungsaussteller|Aussteller)\s*:\s*(.{3,80}?)(?=\s+(?:Rechnungsdatum|Rechnungsnummer|Adresse|Straße|Strasse|Tel|E-Mail)\b|$)/i.exec(flat);
@@ -82,5 +83,20 @@ export function suggestFields(text:string):Suggestions{
   /\bGesamtsumme\b/i,/\bEndbetrag\b/i,/\bRechnungsbetrag\b/i,
   /\bZu zahlen\b/i,/\bGesamtbetrag\b/i,/\bBetrag bezahlt\b/i,/\bBezahlt\b/i
  ])??result.amount;
+ // Fallback for a severely damaged total label in the last photographed
+ // section (observed OCR: "1% 23,64"). Do not guess from ordinary item prices.
+ if(!result.amount){
+  const lastSection=text.split(/--- NÄCHSTER ABSCHNITT ---/).at(-1)??text;
+  const tailLines=lastSection.split(/\r?\n/).map(line=>line.trim()).filter(Boolean);
+  const tail=tailLines.slice(-6);
+  const candidates=tail.filter(line=>/^(?:1[%§]|[|I][%§])\s+\d{1,5},\d{2}\s*$/i.test(line));
+  if(candidates.length===1){
+   const match=candidates[0].match(/(\d{1,5},\d{2})\s*$/);
+   if(match){
+    result.amount=match[1];
+    result.amountHint="Gesamtsumme unsicher erkannt (beschädigte OCR-Zeile). Betrag bitte am Originalbon prüfen.";
+   }
+  }
+ }
  return result;
 }
