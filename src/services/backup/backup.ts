@@ -48,7 +48,7 @@ function validReceipt(x:unknown):x is StoredReceipt{
  const r=x as Record<string,unknown>;
  return typeof r.id==="string"&&r.id.length>0&&typeof r.supplier==="string"&&typeof r.date==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(r.date)&&typeof r.cents==="number"&&Number.isSafeInteger(r.cents)&&r.cents>=0&&typeof r.category==="string"&&typeof r.payment==="string"&&typeof r.filename==="string"&&typeof r.fileBase64==="string"&&r.fileBase64.length<=Math.ceil(MAX_FILE_BYTES*4/3)+8&&typeof r.fileType==="string";
 }
-export async function importBackup(file:File):Promise<{receipts:number;incomes:number;skipped:number}>{
+export async function importBackup(file:File):Promise<{receipts:number;incomes:number;changes:number;skipped:number}>{
  if(file.size>MAX_BACKUP_BYTES)throw new Error("Backup ist größer als 100 MB.");
  let raw:unknown;try{raw=JSON.parse(await file.text());}catch{throw new Error("Keine gültige JSON-Datei.");}
  if(!raw||typeof raw!=="object")throw new Error("Ungültiges Backup.");
