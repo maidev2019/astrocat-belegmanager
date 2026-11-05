@@ -28,7 +28,7 @@ export function suggestFields(text:string):Suggestions{
  if(!result.supplier&&/\\b(?:BON|KASSE|FILIALE|KARTENZAHLUNG|GESAMTBETRAG)\\b/i.test(flat)){
   const lines=text.split(/\\r?\\n/).map(line=>line.trim()).filter(Boolean);
   const first=lines[0]??"";
-  const shop=first.match(/^(.{3,65}?)(?=\\s+\\*{2,}|\\s+DEMO[- ]KASSENBON\\b|$)/i)?.[1]?.trim();
+  const shop=first.match(/^(.{3,65}?)(?=\s+\*{2,}|\s+DEMO[- ]KASSENBON\b|$)/i)?.[1]?.trim();
   if(shop&&!/^(?:RECHNUNG|INVOICE|KASSENBON|BON|ARTIKEL)\\b/i.test(shop))result.supplier=shop;
  }
  // Some invoices provide an explicit vendor line instead.
