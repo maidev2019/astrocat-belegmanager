@@ -9,7 +9,7 @@ import { combineReceiptPhotos } from "../services/receipts/combinePhotos";
 const categories=["Rohwaren","Verpackung","Versand","Werbung","Software","Miete","Ausstattung","Sonstiges"];
 const payments=["Geschäftskonto","Privatkonto","Bargeld","Sonstiges"];
 type Fields={supplier:string;date:string;amount:string;category:string;payment:string};
-const emptyFields=():Fields=>({supplier:"",date:new Date().toLocaleDateString("en-CA"),amount:"",category:"Sonstiges",payment:"Geschäftskonto"});
+const emptyFields=():Fields=>({supplier:"",date:"",amount:"",category:"Sonstiges",payment:"Geschäftskonto"});
 const formatAmount=(value:number)=>(value/100).toFixed(2).replace(".",",");
 
 export function Receipts(){
@@ -62,14 +62,14 @@ export function Receipts(){
      const result=await extractText(photos[i],message=>setScanStatus("Foto "+(index+1)+"/"+photos.length+": "+message));
      parts.push(result.text);
     }
-    text=parts.join("\\n\\n--- NÄCHSTER ABSCHNITT ---\\n\\n");
+    text=parts.join("\n\n--- NÄCHSTER ABSCHNITT ---\n\n");
    }else{
     const result=await extractText(file,setScanStatus);
     text=result.text;pageCount=result.pages;method=result.method;
    }
    setScanText(text);
    const suggestions=suggestFields(text);
-   setFields(old=>({...old,...suggestions}));
+   setFields(old=>({...old,supplier:suggestions.supplier??"",date:suggestions.date??"",amount:suggestions.amount??""}));
    setScanStatus("Erkennung abgeschlossen ("+pageCount+" Abschnitt(e), "+method+"). Angaben kontrollieren, besonders Gesamtsumme und Datum.");
   }
   catch(e){setError("OCR-Fehler: "+(e instanceof Error?e.message:String(e)));}
