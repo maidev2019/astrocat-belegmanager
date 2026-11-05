@@ -21,9 +21,13 @@ function amountAfter(text:string,labels:RegExp[]):string|undefined{
 export function suggestFields(text:string):Suggestions{
  const flat=flatText(text),result:Suggestions={};
  const lines=text.split(/\r?\n/).map(line=>line.trim()).filter(Boolean);
+ // Recognize distinctive retailer logos frequently misread by OCR.
+ // Restrict matching to the first few lines so product names cannot override the issuer.
+ const top=lines.slice(0,8);
+ if(top.some(line=>/^(?:LIDL|L[$§5]DL|L[I1!|]DL)\b/i.test(line)))result.supplier="Lidl";
  // The company printed immediately before RECHNUNG is often the invoice issuer.
  const header=/^(.{3,80}?)\s+(?:RECHNUNG|INVOICE)\b/i.exec(flat);
- if(header)result.supplier=header[1].trim();
+ if(header&&!result.supplier)result.supplier=header[1].trim();
  // Receipt headers often start with the shop name, before address and till data.
  // Only apply this to typical till receipts, never override an invoice issuer.
  if(!result.supplier&&/\b(?:BON|KASSE|FILIALE|KARTENZAHLUNG|GESAMTBETRAG)\b/i.test(flat)){
