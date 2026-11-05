@@ -13,3 +13,5 @@
 .delete-confirmation .form-actions > button.danger-confirm,
 .delete-confirmation .form-actions > button.danger-confirm:disabled{background:#b42318;color:#fff;border:1px solid #b42318;font-weight:700;min-width:190px;opacity:1}
 .delete-confirmation .form-actions > button.danger-confirm:disabled{background:#f9d8d5;color:#8f1d18;border-color:#e6a6a0;cursor:not-allowed}
+
+.receipt-inputs{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:18px}.photo-capture{border:1px solid #dbe2f1;background:#f9faff;border-radius:10px;padding:15px;display:grid;gap:10px}.photo-capture p{margin:0;font-size:13px}.photo-capture strong{font-size:14px}.photo-list{margin:0;padding-left:22px;font-size:13px}.photo-list li{margin:6px 0;overflow-wrap:anywhere}.photo-list button{margin-left:8px;border:1px solid #d7dfea;background:white;border-radius:6px;padding:5px 8px}@media(max-width:750px){.receipt-inputs{grid-template-columns:1fr}}
