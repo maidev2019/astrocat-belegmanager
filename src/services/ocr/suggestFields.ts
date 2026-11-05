@@ -10,7 +10,7 @@ function amountAfterLabel(text:string,label:RegExp):number|undefined{
  const match=label.exec(text);
  if(!match)return undefined;
  const rest=text.slice(match.index+match[0].length,match.index+match[0].length+45);
- const amount=new RegExp(String.raw`^\s*[:\-]?\s*(?:€\s*)?`+money+String.raw`\s*(?:€|EUR)?\b?`.replace("\\b?",""),"i").exec(rest);
+ const amount=new RegExp(String.raw`^\\s*[:\\-]?\\s*(?:€\\s*)?`+money,"i").exec(rest);
  return amount?parseAmount(amount[1]):undefined;
 }
 export function suggestFields(text:string):Suggestions{
