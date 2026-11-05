@@ -8,3 +8,8 @@
 .receipt-actions .danger-action{color:#b42318;font-weight:600}
 
 .delete-confirmation{border:2px solid #b42318;background:#fff9f8}.delete-confirmation label{max-width:420px}.delete-confirmation .form-actions{margin-top:16px}.danger-confirm{border:0;border-radius:9px;background:#b42318;color:white;padding:12px 17px}.danger-confirm:disabled{opacity:.45;cursor:not-allowed}
+
+/* Higher specificity than .form-actions > button:not(.primary): keep danger text readable. */
+.delete-confirmation .form-actions > button.danger-confirm,
+.delete-confirmation .form-actions > button.danger-confirm:disabled{background:#b42318;color:#fff;border:1px solid #b42318;font-weight:700;min-width:190px;opacity:1}
+.delete-confirmation .form-actions > button.danger-confirm:disabled{background:#f9d8d5;color:#8f1d18;border-color:#e6a6a0;cursor:not-allowed}
