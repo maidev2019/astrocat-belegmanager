@@ -17,7 +17,24 @@ export async function extractText(file:File,onProgress?:(message:string)=>void,e
  if(!isPdf){
   onProgress?.("OCR wird vorbereitet …");
   const worker=await createWorker("deu+eng");
-  try{onProgress?.(enhance?"Foto wird optimiert …":"Foto wird gelesen …");const input=enhance?await enhanceReceiptImage(file):file;onProgress?.("Foto wird gelesen …");const result=await worker.recognize(input);return {text:result.data.text,method:"ocr",pages:1};}
+  try{
+   onProgress?.(enhance?"Optimierte und originale Aufnahme werden verglichen …":"Foto wird gelesen …");
+   // Always try the original first. Aggressive contrast can destroy thermal-paper details.
+   const original=await worker.recognize(file);
+   if(!enhance && original.data.confidence>=60 && original.data.text.trim().length>=40)
+    return {text:original.data.text,method:"ocr",pages:1};
+   onProgress?.("Zweite OCR-Variante wird geprüft …");
+   try{
+    const adjusted=await enhanceReceiptImage(file);
+    const alternate=await worker.recognize(adjusted);
+    const score=(r:typeof original)=>r.data.confidence+(r.data.text.trim().length<25?-30:0);
+    const best=score(alternate)>score(original)+3?alternate:original;
+    return {text:best.data.text,method:"ocr",pages:1};
+   }catch{
+    // Unsupported image processing must never discard a valid first OCR pass.
+    return {text:original.data.text,method:"ocr",pages:1};
+   }
+  }
   finally{await worker.terminate();}
  }
  onProgress?.("PDF wird geöffnet …");
