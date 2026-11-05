@@ -1,7 +1,8 @@
 /** Browser-side text extraction. No document is sent to an application server.
  * Tesseract language assets may be fetched from its CDN on first use.
  */
-import { createWorker } from "tesseract.js";
+import { createWorker,type Worker } from "tesseract.js";
+import { prepareOcrImage } from "./prepareImage";
 import { enhanceReceiptImage } from "./enhanceImage";
 import * as pdfjs from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
@@ -10,32 +11,27 @@ pdfjs.GlobalWorkerOptions.workerSrc=workerUrl;
 export interface ScanResult { text:string; method:"pdf-text"|"ocr"; pages:number; }
 const MAX_PAGES=8;
 const MAX_BYTES=15*1024*1024;
-export async function extractText(file:File,onProgress?:(message:string)=>void,enhance=false):Promise<ScanResult>{
+export async function extractText(file:File,onProgress?:(message:string)=>void,enhance=false,sharedWorker?:Worker):Promise<ScanResult>{
  if(file.size>MAX_BYTES)throw new Error("Datei ist größer als 15 MB.");
  const isPdf=file.type==="application/pdf"||file.name.toLowerCase().endsWith(".pdf");
  if(!isPdf&&!file.type.startsWith("image/"))throw new Error("Nur PDFs und Bilder werden unterstützt.");
  if(!isPdf){
-  onProgress?.("OCR wird vorbereitet …");
-  const worker=await createWorker("deu+eng");
+  onProgress?.("Foto wird für mobile OCR vorbereitet …");
+  const input=await prepareOcrImage(file);
+  const worker=sharedWorker??await createWorker("deu+eng");
   try{
-   onProgress?.(enhance?"Optimierte und originale Aufnahme werden verglichen …":"Foto wird gelesen …");
-   // Always try the original first. Aggressive contrast can destroy thermal-paper details.
-   const original=await worker.recognize(file);
-   if(!enhance && original.data.confidence>=60 && original.data.text.trim().length>=40)
-    return {text:original.data.text,method:"ocr",pages:1};
-   onProgress?.("Zweite OCR-Variante wird geprüft …");
-   try{
-    const adjusted=await enhanceReceiptImage(file);
-    const alternate=await worker.recognize(adjusted);
-    const score=(r:typeof original)=>r.data.confidence+(r.data.text.trim().length<25?-30:0);
-    const best=score(alternate)>score(original)+3?alternate:original;
-    return {text:best.data.text,method:"ocr",pages:1};
-   }catch{
-    // Unsupported image processing must never discard a valid first OCR pass.
-    return {text:original.data.text,method:"ocr",pages:1};
+   onProgress?.("Foto wird gelesen …");
+   // Exactly one recognition per image. A second pass is deliberately
+   // disabled to avoid long mobile hangs and excess memory use.
+   let source:Blob=input;
+   if(enhance){
+    onProgress?.("Kontrast wird optimiert …");
+    try{source=await enhanceReceiptImage(new File([input],"ocr.jpg",{type:input.type}));}
+    catch{source=input;}
    }
-  }
-  finally{await worker.terminate();}
+   const result=await worker.recognize(source);
+   return {text:result.data.text,method:"ocr",pages:1};
+  }finally{if(!sharedWorker)await worker.terminate();}
  }
  onProgress?.("PDF wird geöffnet …");
  const pdf=await pdfjs.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise;
