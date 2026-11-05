@@ -22,6 +22,7 @@ export function Receipts(){
  const [scanStatus,setScanStatus]=useState(""),[scanText,setScanText]=useState("");
  const [search,setSearch]=useState(""),[year,setYear]=useState("all"),[categoryFilter,setCategoryFilter]=useState("all"),[paymentFilter,setPaymentFilter]=useState("all");
  const [error,setError]=useState("");
+ const [deleteTarget,setDeleteTarget]=useState<Receipt|null>(null),[deleteConfirmation,setDeleteConfirmation]=useState(""),[deleteError,setDeleteError]=useState("");
  const [showArchived,setShowArchived]=useState(false),[history,setHistory]=useState<ReceiptChange[]>([]);
  const refresh=async()=>setItems((await db.receipts.toArray()).sort((a,b)=>b.date.localeCompare(a.date)));
  useEffect(()=>{void refresh();},[]);
@@ -59,12 +60,16 @@ export function Receipts(){
   finally{setBusy(false);}
  }
  async function archive(item:Receipt){const action=item.archivedAt?"wiederherstellen":"archivieren";if(!confirm("Beleg "+action+"?"))return;try{await setArchived(item,!item.archivedAt);if(details?.id===item.id)setDetails(null);await refresh();}catch(e){setError(e instanceof Error?e.message:"Aktion fehlgeschlagen");}}
- async function permanentlyRemove(item:Receipt){
-  if(!item.archivedAt)return;
-  const confirmation=window.prompt("ACHTUNG: Dieser Beleg, die Originaldatei und seine Änderungshistorie werden dauerhaft aus dem lokalen Speicher gelöscht. Diese Aktion kann nicht rückgängig gemacht werden. Gib LÖSCHEN ein, um fortzufahren:");
-  if(confirmation!=="LÖSCHEN")return;
-  try{await permanentlyDeleteReceipt(item.id);if(details?.id===item.id)setDetails(null);await refresh();}
-  catch(e){setError(e instanceof Error?e.message:"Löschen fehlgeschlagen");}
+ async function permanentlyRemove(){
+  if(!deleteTarget||deleteConfirmation!=="LÖSCHEN")return;
+  setBusy(true);setDeleteError("");
+  try{
+   await permanentlyDeleteReceipt(deleteTarget.id);
+   if(details?.id===deleteTarget.id)setDetails(null);
+   setDeleteTarget(null);setDeleteConfirmation("");
+   await refresh();
+  }catch(e){setDeleteError(e instanceof Error?e.message:"Löschen fehlgeschlagen");}
+  finally{setBusy(false);}
  }
  const years=Array.from(new Set(items.map(x=>x.date.slice(0,4)))).sort().reverse();
  const filtered=items.filter(x=>(showArchived?!!x.archivedAt:!x.archivedAt)&&(x.supplier+" "+x.filename+" "+x.date+" "+x.category).toLocaleLowerCase("de").includes(search.toLocaleLowerCase("de"))&&(year==="all"||x.date.startsWith(year))&&(categoryFilter==="all"||x.category===categoryFilter)&&(paymentFilter==="all"||x.payment===paymentFilter));
@@ -86,7 +91,15 @@ export function Receipts(){
  <label>Jahr<select value={year} onChange={e=>setYear(e.target.value)}><option value="all">Alle Jahre</option>{years.map(y=><option key={y}>{y}</option>)}</select></label>
  <label>Kategorie<select value={categoryFilter} onChange={e=>setCategoryFilter(e.target.value)}><option value="all">Alle Kategorien</option>{categories.map(x=><option key={x}>{x}</option>)}</select></label>
  <label>Zahlungsart<select value={paymentFilter} onChange={e=>setPaymentFilter(e.target.value)}><option value="all">Alle Zahlungsarten</option>{payments.map(x=><option key={x}>{x}</option>)}</select></label></div>
- <div className="scroll"><table><thead><tr><th>Datum</th><th>Lieferant</th><th>Kategorie</th><th>Zahlung</th><th>Betrag</th><th>Aktionen</th></tr></thead><tbody>{filtered.map(item=><tr key={item.id}><td>{item.date}</td><td>{item.supplier}<small>{item.filename}</small></td><td>{item.category}</td><td>{item.payment}</td><td>{euro(item.cents)}</td><td className="receipt-actions"><button onClick={()=>setDetails(item)}>Details</button>{!item.archivedAt&&<button onClick={()=>edit(item)}>Bearbeiten</button>}<button onClick={()=>void archive(item)}>{item.archivedAt?"Wiederherstellen":"Archivieren"}</button>{item.archivedAt&&<button className="danger-action" onClick={()=>void permanentlyRemove(item)}>Endgültig löschen</button>}</td></tr>)}</tbody></table>{filtered.length===0&&<p>Keine passenden Belege.</p>}</div></section>
+ <div className="scroll"><table><thead><tr><th>Datum</th><th>Lieferant</th><th>Kategorie</th><th>Zahlung</th><th>Betrag</th><th>Aktionen</th></tr></thead><tbody>{filtered.map(item=><tr key={item.id}><td>{item.date}</td><td>{item.supplier}<small>{item.filename}</small></td><td>{item.category}</td><td>{item.payment}</td><td>{euro(item.cents)}</td><td className="receipt-actions"><button onClick={()=>setDetails(item)}>Details</button>{!item.archivedAt&&<button onClick={()=>edit(item)}>Bearbeiten</button>}<button onClick={()=>void archive(item)}>{item.archivedAt?"Wiederherstellen":"Archivieren"}</button>{item.archivedAt&&<button className="danger-action" onClick={()=>{setDeleteTarget(item);setDeleteConfirmation("");setDeleteError("");}}>Endgültig löschen</button>}</td></tr>)}</tbody></table>{filtered.length===0&&<p>Keine passenden Belege.</p>}</div></section>
+ {deleteTarget&&<section className="delete-confirmation" role="region" aria-label="Endgültiges Löschen bestätigen">
+ <h2>Beleg endgültig löschen?</h2>
+ <p><strong>{deleteTarget.supplier}</strong> – {deleteTarget.filename}</p>
+ <p>Originaldatei, Belegdaten und Änderungshistorie werden dauerhaft aus dem lokalen Speicher gelöscht. Eine Wiederherstellung ist nur mit einem vorherigen Backup möglich.</p>
+ <label>Zur Bestätigung LÖSCHEN eingeben<input value={deleteConfirmation} onChange={e=>setDeleteConfirmation(e.target.value)} autoFocus/></label>
+ {deleteError&&<p role="alert" className="form-error">{deleteError}</p>}
+ <div className="form-actions"><button type="button" className="danger-confirm" disabled={busy||deleteConfirmation!=="LÖSCHEN"} onClick={()=>void permanentlyRemove()}>{busy?"Lösche …":"Jetzt endgültig löschen"}</button><button type="button" disabled={busy} onClick={()=>{setDeleteTarget(null);setDeleteConfirmation("");setDeleteError("");}}>Abbrechen</button></div>
+ </section>}
  {details&&<section><div className="detail-header"><h2>Belegdetails: {details.supplier}</h2><button onClick={()=>setDetails(null)}>Schließen</button></div><div className="detail-grid"><div>{preview&&(details.file.type.startsWith("image/")?<img src={preview} alt="Originalbeleg" className="detail-preview"/>:<iframe src={preview} title="Originalbeleg" className="detail-preview"/>)}</div><dl><dt>Datum</dt><dd>{details.date}</dd><dt>Betrag</dt><dd>{euro(details.cents)}</dd><dt>Kategorie</dt><dd>{details.category}</dd><dt>Bezahlt über</dt><dd>{details.payment}</dd><dt>Datei</dt><dd>{details.filename}</dd>{!details.archivedAt&&<button onClick={()=>edit(details)}>Angaben bearbeiten</button>}</dl></div><div className="audit-history"><h3>Änderungshistorie</h3>{history.length===0?<p>Für ältere Belege existieren noch keine historischen Einträge.</p>:<ol>{history.map(entry=><li key={entry.id}><strong>{({created:"Erstellt",updated:"Bearbeitet",archived:"Archiviert",restored:"Wiederhergestellt"} as const)[entry.action]}</strong> – {new Date(entry.at).toLocaleString("de-DE")}{entry.before&&entry.after&&<details><summary>Vorher / Nachher</summary><pre>{JSON.stringify({vorher:entry.before,nachher:entry.after},null,2)}</pre></details>}</li>)}</ol>}</div></section>}
  </>;
 }
