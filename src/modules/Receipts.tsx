@@ -2,6 +2,7 @@ import { useEffect,useRef,useState,type FormEvent } from "react";
 import { db,cents,euro,type Receipt,type ReceiptChange } from "../data";
 import {createReceipt,updateReceipt,setArchived,getHistory,permanentlyDeleteReceipt} from "../services/receipts/receiptStore";
 import { extractText } from "../services/ocr/extractText";
+import { createWorker } from "tesseract.js";
 import { suggestFields } from "../services/ocr/suggestFields";
 import { findDuplicate } from "../services/receipts/duplicates";
 import { combineReceiptPhotos } from "../services/receipts/combinePhotos";
@@ -72,11 +73,15 @@ export function Receipts(){
    if(photos.length){
     pageCount=photos.length;method="Foto-OCR";
     const parts:string[]=[];
-    for(let i=0;i<photos.length;i++){
-     const index=i;
-     const result=await extractText(photos[i],message=>setScanStatus("Foto "+(index+1)+"/"+photos.length+": "+message),enhance);
-     parts.push(result.text);
-    }
+    setScanStatus("OCR wird einmalig vorbereitet …");
+    const worker=await createWorker("deu+eng");
+    try{
+     for(let i=0;i<photos.length;i++){
+      const index=i;
+      const result=await extractText(photos[i],message=>setScanStatus("Foto "+(index+1)+"/"+photos.length+": "+message),enhance,worker);
+      parts.push(result.text);
+     }
+    }finally{await worker.terminate();}
     text=parts.join("\n\n--- NÄCHSTER ABSCHNITT ---\n\n");
    }else{
     const result=await extractText(file,setScanStatus,enhance);
