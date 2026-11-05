@@ -1,0 +1,22 @@
+{
+  "name": "astrocat-belegmanager",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build"
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "dexie": "^4.0.11"
+  },
+  "devDependencies": {
+    "vite": "^6.0.5",
+    "typescript": "~5.7.3",
+    "@vitejs/plugin-react": "^4.3.4",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0"
+  }
+}
