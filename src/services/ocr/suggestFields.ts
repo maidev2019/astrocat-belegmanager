@@ -20,16 +20,23 @@ function amountAfter(text:string,labels:RegExp[]):string|undefined{
 }
 export function suggestFields(text:string):Suggestions{
  const flat=flatText(text),result:Suggestions={};
+ const lines=text.split(/\r?\n/).map(line=>line.trim()).filter(Boolean);
  // The company printed immediately before RECHNUNG is often the invoice issuer.
  const header=/^(.{3,80}?)\s+(?:RECHNUNG|INVOICE)\b/i.exec(flat);
  if(header)result.supplier=header[1].trim();
  // Receipt headers often start with the shop name, before address and till data.
  // Only apply this to typical till receipts, never override an invoice issuer.
  if(!result.supplier&&/\b(?:BON|KASSE|FILIALE|KARTENZAHLUNG|GESAMTBETRAG)\b/i.test(flat)){
-  const lines=text.split(/\r?\n/).map(line=>line.trim()).filter(Boolean);
   const first=lines[0]??"";
   const shop=first.match(/^(.{3,65}?)(?=\s+\*{2,}|\s+DEMO[- ]KASSENBON\b|$)/i)?.[1]?.trim();
   if(shop&&!/^(?:RECHNUNG|INVOICE|KASSENBON|BON|ARTIKEL)\b/i.test(shop))result.supplier=shop;
+ }
+ // Store names may be present even when OCR fails to read the word "Bon".
+ // Match only standalone names in the receipt header, not product descriptions.
+ if(!result.supplier){
+  const headerLines=lines.slice(0,8);
+  const known=headerLines.find(line=>/^kaufland\b/i.test(line));
+  if(known)result.supplier="Kaufland";
  }
  // Some invoices provide an explicit vendor line instead.
  const vendor=/(?:Verkäufer|Rechnungsaussteller|Aussteller)\s*:\s*(.{3,80}?)(?=\s+(?:Rechnungsdatum|Rechnungsnummer|Adresse|Straße|Strasse|Tel|E-Mail)\b|$)/i.exec(flat);
@@ -52,10 +59,19 @@ export function suggestFields(text:string):Suggestions{
   const fallback=/\b(\d{1,2})\.(\d{1,2})\.(20\d{2})\b/.exec(flat);
   if(fallback)result.date=validDate(+fallback[1],+fallback[2],+fallback[3]);
  }
+ // Till receipts can show "Summe 23,64", sometimes with OCR errors
+ // (e.g. "1% 23,64"). Use the last short line containing a plausible
+ // amount only when a total-like label is visible in that same image segment.
+ const sumLine=lines.findIndex(line=>/^(?:summe|sumna|sumne|surnme|zu zahlen|gesamt(?:betrag)?)\b/i.test(line));
+ if(sumLine>=0){
+  const near=lines.slice(sumLine,sumLine+3).join(" ");
+  const m=near.match(/\b(\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2})\b/g);
+  if(m?.length)result.amount=m[0];
+ }
  // End amount must take precedence over subtotal, discount and line items.
  result.amount=amountAfter(flat,[
   /\bGesamtsumme\b/i,/\bEndbetrag\b/i,/\bRechnungsbetrag\b/i,
   /\bZu zahlen\b/i,/\bGesamtbetrag\b/i,/\bBetrag bezahlt\b/i,/\bBezahlt\b/i
- ]);
+ ])??result.amount;
  return result;
 }
