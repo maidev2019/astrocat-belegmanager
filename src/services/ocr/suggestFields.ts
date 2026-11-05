@@ -48,6 +48,12 @@ export function suggestFields(text:string):Suggestions{
   const company=top.find(line=>/^[\p{L}][\p{L}0-9 .&'-]{2,65}\s+(?:GmbH|UG|AG|e\.K\.)\b/iu.test(line));
   if(company)result.supplier=company.trim();
  }
+ // Pharmacies often print the business name on its own line, without
+ // "GmbH" or "Rechnung". Look only in the header and exclude address lines.
+ if(!result.supplier){
+  const pharmacy=top.find(line=>/^(?:[\p{L}][\p{L}.'-]*\s+){0,4}Apotheke\b|^Apotheke(?:\s+[\p{L}][\p{L}.'-]*){1,4}\b/iu.test(line));
+  if(pharmacy&&pharmacy.length<=70)result.supplier=pharmacy.trim();
+ }
  // Some invoices provide an explicit vendor line instead.
  const vendor=/(?:Verkäufer|Rechnungsaussteller|Aussteller)\s*:\s*(.{3,80}?)(?=\s+(?:Rechnungsdatum|Rechnungsnummer|Adresse|Straße|Strasse|Tel|E-Mail)\b|$)/i.exec(flat);
  if(vendor)result.supplier=vendor[1].trim();
