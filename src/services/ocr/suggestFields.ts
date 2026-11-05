@@ -11,7 +11,7 @@ function amountAfter(text:string,labels:RegExp[]):string|undefined{
  for(const label of labels){
   const m=label.exec(text);if(!m)continue;
   const tail=text.slice(m.index+m[0].length,m.index+m[0].length+45);
-  const value=/^\s*[:\-]?\s*(?:€\s*)?(\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2})(?!\d)/.exec(tail);
+  const value=/^\s*[:\-]?\s*(?:(?:€|EUR)\s*)?(\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2})(?!\d)/.exec(tail);
   if(!value)continue;
   const n=Number(value[1].replace(/\./g,"").replace(",","."));
   if(Number.isFinite(n)&&n>0&&n<10000000)return n.toFixed(2).replace(".",",");
@@ -25,11 +25,11 @@ export function suggestFields(text:string):Suggestions{
  if(header)result.supplier=header[1].trim();
  // Receipt headers often start with the shop name, before address and till data.
  // Only apply this to typical till receipts, never override an invoice issuer.
- if(!result.supplier&&/\\b(?:BON|KASSE|FILIALE|KARTENZAHLUNG|GESAMTBETRAG)\\b/i.test(flat)){
-  const lines=text.split(/\\r?\\n/).map(line=>line.trim()).filter(Boolean);
+ if(!result.supplier&&/\b(?:BON|KASSE|FILIALE|KARTENZAHLUNG|GESAMTBETRAG)\b/i.test(flat)){
+  const lines=text.split(/\r?\n/).map(line=>line.trim()).filter(Boolean);
   const first=lines[0]??"";
   const shop=first.match(/^(.{3,65}?)(?=\s+\*{2,}|\s+DEMO[- ]KASSENBON\b|$)/i)?.[1]?.trim();
-  if(shop&&!/^(?:RECHNUNG|INVOICE|KASSENBON|BON|ARTIKEL)\\b/i.test(shop))result.supplier=shop;
+  if(shop&&!/^(?:RECHNUNG|INVOICE|KASSENBON|BON|ARTIKEL)\b/i.test(shop))result.supplier=shop;
  }
  // Some invoices provide an explicit vendor line instead.
  const vendor=/(?:Verkäufer|Rechnungsaussteller|Aussteller)\s*:\s*(.{3,80}?)(?=\s+(?:Rechnungsdatum|Rechnungsnummer|Adresse|Straße|Strasse|Tel|E-Mail)\b|$)/i.exec(flat);
