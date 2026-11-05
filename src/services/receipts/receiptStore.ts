@@ -40,3 +40,14 @@ export async function setArchived(original:Receipt,archive:boolean):Promise<void
 export async function getHistory(receiptId:string):Promise<ReceiptChange[]>{
  return (await db.changes.where("receiptId").equals(receiptId).toArray()).sort((a,b)=>b.at.localeCompare(a.at));
 }
+
+/** Permanent removal is only allowed for archived receipts. Audit records are removed too. */
+export async function permanentlyDeleteReceipt(receiptId:string):Promise<void>{
+ await db.transaction("rw",db.receipts,db.changes,async()=>{
+  const receipt=await db.receipts.get(receiptId);
+  if(!receipt)throw new Error("Beleg existiert nicht mehr.");
+  if(!receipt.archivedAt)throw new Error("Beleg muss vor dem Löschen archiviert werden.");
+  await db.changes.where("receiptId").equals(receiptId).delete();
+  await db.receipts.delete(receiptId);
+ });
+}
