@@ -2,6 +2,7 @@
  * Tesseract language assets may be fetched from its CDN on first use.
  */
 import { createWorker } from "tesseract.js";
+import { enhanceReceiptImage } from "./enhanceImage";
 import * as pdfjs from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 
@@ -9,14 +10,14 @@ pdfjs.GlobalWorkerOptions.workerSrc=workerUrl;
 export interface ScanResult { text:string; method:"pdf-text"|"ocr"; pages:number; }
 const MAX_PAGES=8;
 const MAX_BYTES=15*1024*1024;
-export async function extractText(file:File,onProgress?:(message:string)=>void):Promise<ScanResult>{
+export async function extractText(file:File,onProgress?:(message:string)=>void,enhance=false):Promise<ScanResult>{
  if(file.size>MAX_BYTES)throw new Error("Datei ist größer als 15 MB.");
  const isPdf=file.type==="application/pdf"||file.name.toLowerCase().endsWith(".pdf");
  if(!isPdf&&!file.type.startsWith("image/"))throw new Error("Nur PDFs und Bilder werden unterstützt.");
  if(!isPdf){
   onProgress?.("OCR wird vorbereitet …");
   const worker=await createWorker("deu+eng");
-  try{onProgress?.("Foto wird gelesen …");const result=await worker.recognize(file);return {text:result.data.text,method:"ocr",pages:1};}
+  try{onProgress?.(enhance?"Foto wird optimiert …":"Foto wird gelesen …");const input=enhance?await enhanceReceiptImage(file):file;onProgress?.("Foto wird gelesen …");const result=await worker.recognize(input);return {text:result.data.text,method:"ocr",pages:1};}
   finally{await worker.terminate();}
  }
  onProgress?.("PDF wird geöffnet …");
