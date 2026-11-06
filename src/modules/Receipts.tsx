@@ -26,6 +26,7 @@ export function Receipts(){
  const [scanning,setScanning]=useState(false),[busy,setBusy]=useState(false);
  const [scanStatus,setScanStatus]=useState(""),[scanText,setScanText]=useState("");
  const [enhance,setEnhance]=useState(false),[dateHint,setDateHint]=useState(""),[amountHint,setAmountHint]=useState("");
+ const [supplierHint,setSupplierHint]=useState(""),[qualityHint,setQualityHint]=useState("");
  const [search,setSearch]=useState(""),[year,setYear]=useState("all"),[categoryFilter,setCategoryFilter]=useState("all"),[paymentFilter,setPaymentFilter]=useState("all");
  const [error,setError]=useState("");
  const [deleteTarget,setDeleteTarget]=useState<Receipt|null>(null),[deleteConfirmation,setDeleteConfirmation]=useState(""),[deleteError,setDeleteError]=useState("");
@@ -34,7 +35,7 @@ export function Receipts(){
  useEffect(()=>{void refresh();},[]);
  useEffect(()=>{if(!details)return;void getHistory(details.id).then(setHistory).catch(()=>setHistory([]));const url=URL.createObjectURL(details.file);setPreview(url);return ()=>{URL.revokeObjectURL(url);setPreview(null);};},[details]);
  function setField<K extends keyof Fields>(key:K,value:Fields[K]){setFields(old=>({...old,[key]:value}));}
- function onFileChange(next:File|null){setPhotos([]);setFile(next);setScanText("");setScanStatus("");setDateHint("");setAmountHint("");setError("");}
+ function onFileChange(next:File|null){setPhotos([]);setFile(next);setScanText("");setScanStatus("");setDateHint("");setAmountHint("");setSupplierHint("");setQualityHint("");setError("");}
  async function addPhotos(newPhotos:File[]){
   if(!newPhotos.length)return;
   const next=[...photos,...newPhotos];
@@ -91,6 +92,8 @@ export function Receipts(){
    const suggestions=suggestFields(text);
    setDateHint(suggestions.partialDate??"");
    setAmountHint(suggestions.amountHint??"");
+   setSupplierHint(suggestions.supplierHint??"");
+   setQualityHint(suggestions.qualityHint??"");
    setFields(old=>({...old,supplier:suggestions.supplier??"",date:suggestions.date??"",amount:suggestions.amount??""}));
    setScanStatus("Erkennung abgeschlossen ("+pageCount+" Abschnitt(e), "+method+"). Angaben kontrollieren, besonders Gesamtsumme und Datum.");
   }
@@ -140,7 +143,7 @@ export function Receipts(){
  {!editing&&<div className="photo-capture"><strong>Kassenbon mit mehreren Fotos aufnehmen</strong><p>Fotografiere den Bon abschnittsweise von oben nach unten. Die Abschnitte sollten sich leicht überlappen.</p><div className="camera-controls"><button type="button" className="camera-main-button" disabled={photoBusy||scanning||photos.length>=5} onClick={()=>cameraInput.current?.click()}>{photos.length?"Weiteren Abschnitt fotografieren":"Kamera öffnen / ersten Abschnitt fotografieren"}</button><input ref={cameraInput} className="camera-file-input" type="file" accept="image/*" capture="environment" aria-label="Foto mit Kamera aufnehmen" disabled={photoBusy||scanning||photos.length>=5} onChange={e=>{const selected=Array.from(e.target.files??[]);e.target.value="";void addPhotos(selected);}}/><small>Auf dem Smartphone öffnet sich je nach Browser die Kamera oder eine Fotoauswahl. Auf dem Desktop kannst du eine Bilddatei wählen.</small></div><label>Mehrere vorhandene Fotos auswählen<input type="file" accept="image/*" multiple disabled={photoBusy||scanning} onChange={e=>{const selected=Array.from(e.target.files??[]);e.target.value="";void addPhotos(selected);}}/></label><ReceiptPhotoList photos={photos} busy={photoBusy||scanning} onMove={movePhoto} onRemove={removePhoto}/>{photos.length>0&&<p className="camera-next-step" role="status">{photoBusy?"Fotos werden verarbeitet …":photos.length===5?"Maximal 5 Abschnitte erreicht. Reihenfolge prüfen und OCR starten.":"Alle Abschnitte erfasst? Prüfe die Reihenfolge und starte anschließend die OCR. Du kannst auch noch ein Foto hinzufügen."}</p>}<small>Maximal 5 Fotos. Die Reihenfolge entspricht der Aufnahmereihenfolge. Für die Erkennung wird jedes Foto einzeln gelesen.</small></div>}
  </div>
  {file&&<div className="scan-panel"><label className="ocr-enhance"><input type="checkbox" checked={enhance} onChange={e=>setEnhance(e.target.checked)} disabled={scanning}/> Foto für blasses Thermopapier optimieren (Graustufen/Kontrast)</label><button type="button" disabled={scanning||busy||photoBusy} onClick={()=>void scan()}>{scanning?"Erkennung läuft …":"Text automatisch erkennen (OCR)"}</button>{scanStatus&&<p role="status">{scanStatus}</p>}{file.type.startsWith("image/")?<p>Bild ausgewählt: {file.name}</p>:<p>PDF ausgewählt: {file.name}</p>}{scanText&&<details><summary>Erkannten Text prüfen</summary><pre className="ocr-text">{scanText}</pre></details>}</div>}
- <label>Lieferant<input value={fields.supplier} onChange={e=>setField("supplier",e.target.value)} required/></label>
+ <label>Lieferant<input value={fields.supplier} onChange={e=>setField("supplier",e.target.value)} required/>{supplierHint&&<small role="status">{supplierHint}</small>}</label>
  <label>Datum<input type="date" value={fields.date} onChange={e=>setField("date",e.target.value)} required/>{dateHint&&<small role="status">{dateHint} Bitte vollständiges Datum manuell ergänzen.</small>}</label>
  <label>Bruttobetrag (€)<input inputMode="decimal" value={fields.amount} onChange={e=>setField("amount",e.target.value)} required/>{amountHint&&<small role="status">{amountHint}</small>}</label>
  <label>Kategorie<select value={fields.category} onChange={e=>setField("category",e.target.value)}>{categories.map(x=><option key={x}>{x}</option>)}</select></label>
