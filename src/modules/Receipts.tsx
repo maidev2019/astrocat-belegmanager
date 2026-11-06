@@ -4,6 +4,7 @@ import {createReceipt,updateReceipt,setArchived,getHistory,permanentlyDeleteRece
 import { extractText } from "../services/ocr/extractText";
 import { createWorker } from "tesseract.js";
 import { suggestFields } from "../services/ocr/suggestFields";
+import { suggestCategory } from "../services/receipts/suggestCategory";
 import { findDuplicate } from "../services/receipts/duplicates";
 import { combineReceiptPhotos } from "../services/receipts/combinePhotos";
 import { ReceiptPhotoList } from "./ReceiptPhotoList";
@@ -27,6 +28,7 @@ export function Receipts(){
  const [scanStatus,setScanStatus]=useState(""),[scanText,setScanText]=useState("");
  const [enhance,setEnhance]=useState(false),[dateHint,setDateHint]=useState(""),[amountHint,setAmountHint]=useState("");
  const [supplierHint,setSupplierHint]=useState(""),[qualityHint,setQualityHint]=useState("");
+ const [categoryHint,setCategoryHint]=useState("");
  const [search,setSearch]=useState(""),[year,setYear]=useState("all"),[categoryFilter,setCategoryFilter]=useState("all"),[paymentFilter,setPaymentFilter]=useState("all");
  const [error,setError]=useState("");
  const [deleteTarget,setDeleteTarget]=useState<Receipt|null>(null),[deleteConfirmation,setDeleteConfirmation]=useState(""),[deleteError,setDeleteError]=useState("");
@@ -35,7 +37,7 @@ export function Receipts(){
  useEffect(()=>{void refresh();},[]);
  useEffect(()=>{if(!details)return;void getHistory(details.id).then(setHistory).catch(()=>setHistory([]));const url=URL.createObjectURL(details.file);setPreview(url);return ()=>{URL.revokeObjectURL(url);setPreview(null);};},[details]);
  function setField<K extends keyof Fields>(key:K,value:Fields[K]){setFields(old=>({...old,[key]:value}));}
- function onFileChange(next:File|null){setPhotos([]);setFile(next);setScanText("");setScanStatus("");setDateHint("");setAmountHint("");setSupplierHint("");setQualityHint("");setError("");}
+ function onFileChange(next:File|null){setPhotos([]);setFile(next);setScanText("");setScanStatus("");setDateHint("");setAmountHint("");setSupplierHint("");setQualityHint("");setCategoryHint("");setError("");}
  async function addPhotos(newPhotos:File[]){
   if(!newPhotos.length)return;
   const next=[...photos,...newPhotos];
@@ -94,7 +96,9 @@ export function Receipts(){
    setAmountHint(suggestions.amountHint??"");
    setSupplierHint(suggestions.supplierHint??"");
    setQualityHint(suggestions.qualityHint??"");
-   setFields(old=>({...old,supplier:suggestions.supplier??"",date:suggestions.date??"",amount:suggestions.amount??""}));
+   const categorySuggestion=suggestCategory(suggestions.supplier??"",text,await db.receipts.toArray());
+   setCategoryHint(categorySuggestion?.hint??"");
+   setFields(old=>({...old,supplier:suggestions.supplier??"",date:suggestions.date??"",amount:suggestions.amount??"",category:categorySuggestion?.category??"Sonstiges"}));
    setScanStatus("Erkennung abgeschlossen ("+pageCount+" Abschnitt(e), "+method+"). Angaben kontrollieren, besonders Gesamtsumme und Datum.");
   }
   catch(e){setError("OCR-Fehler: "+(e instanceof Error?e.message:String(e)));}
@@ -146,7 +150,7 @@ export function Receipts(){
  <label>Lieferant<input value={fields.supplier} onChange={e=>setField("supplier",e.target.value)} required/>{supplierHint&&<small role="status">{supplierHint}</small>}</label>
  <label>Datum<input type="date" value={fields.date} onChange={e=>setField("date",e.target.value)} required/>{dateHint&&<small role="status">{dateHint} Bitte vollständiges Datum manuell ergänzen.</small>}</label>
  <label>Bruttobetrag (€)<input inputMode="decimal" value={fields.amount} onChange={e=>setField("amount",e.target.value)} required/>{amountHint&&<small role="status">{amountHint}</small>}</label>
- <label>Kategorie<select value={fields.category} onChange={e=>setField("category",e.target.value)}>{categories.map(x=><option key={x}>{x}</option>)}</select></label>
+ <label>Kategorie<select value={fields.category} onChange={e=>{setField("category",e.target.value);setCategoryHint("");}}>{categories.map(x=><option key={x}>{x}</option>)}</select>{categoryHint&&<small role="status">{categoryHint}</small>}</label>
  <label>Bezahlt über<select value={fields.payment} onChange={e=>setField("payment",e.target.value)}>{payments.map(x=><option key={x}>{x}</option>)}</select></label>
  {error&&<p className="form-error" role="alert">{error}</p>}
  <div className="form-actions"><button className="primary" disabled={busy||scanning||photoBusy}>{busy?"Speichert …":editing?"Änderungen speichern":"Beleg speichern"}</button>{editing&&<button type="button" onClick={cancelEdit}>Abbrechen</button>}</div>
