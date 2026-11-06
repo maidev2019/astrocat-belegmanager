@@ -104,7 +104,7 @@ export function suggestFields(text:string):Suggestions{
  }
  // End amount must take precedence over subtotal, discount and line items.
  result.amount=amountAfter(flat,[
-  /\bGesamtsumme\b/i,/\bEndbetrag\b/i,/\bRechnungsbetrag\b/i,
+  /\bGesamtsumme\b/i,/\bEndbetrag\b/i,/\bRechnungsbetrag\b/i,/\bTotal\b/i,
   /\bZu zahlen\b/i,/\bGesamtbetrag\b/i,/\bBetrag bezahlt\b/i,/\bBezahlt\b/i
  ])??result.amount;
  // Fallback for a severely damaged total label in the last photographed
