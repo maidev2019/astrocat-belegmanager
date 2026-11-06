@@ -72,7 +72,7 @@ export function suggestFields(text:string):Suggestions{
  if(!result.supplier){
   const ranked=rankSupplierCandidates(text);
   const best=ranked[0],second=ranked[1];
-  if(best&&best.score>=60&&(!second||best.score-second.score>=12)){
+  if(best&&best.score>=60&&((best.name===(lines[0]??"").trim()&&best.score>=70)||!second||best.score-second.score>=12)){
    result.supplier=best.name;
    result.supplierHint="Lieferant automatisch aus dem Belegkopf vorgeschlagen ("+best.reason+"). Bitte prüfen.";
   }else if(best&&best.score>=35){
