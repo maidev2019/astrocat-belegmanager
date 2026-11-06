@@ -1,5 +1,6 @@
+import { rankSupplierCandidates } from "./supplierCandidates";
 /** Conservative heuristics for flattened German invoice text. All suggestions need review. */
-export interface Suggestions { supplier?:string; date?:string; amount?:string; partialDate?:string; amountHint?:string; }
+export interface Suggestions { supplier?:string; date?:string; amount?:string; partialDate?:string; amountHint?:string; supplierHint?:string; qualityHint?:string; }
 const flatText=(s:string)=>s.replace(/\s+/g," ").trim();
 const months:Record<string,number>={januar:1,februar:2,märz:3,maerz:3,april:4,mai:5,juni:6,juli:7,august:8,september:9,oktober:10,november:11,dezember:12};
 function validDate(day:number,month:number,year:number):string|undefined{
@@ -66,6 +67,18 @@ export function suggestFields(text:string):Suggestions{
    if(entries.length)result.supplier=entries[entries.length-1][1].trim();
   }
  }
+ // Generic candidate ranking is a fallback, never an override for explicit issuers.
+ // Weak candidates are shown for review but never silently saved as a supplier.
+ if(!result.supplier){
+  const ranked=rankSupplierCandidates(text);
+  const best=ranked[0],second=ranked[1];
+  if(best&&best.score>=60&&(!second||best.score-second.score>=12)){
+   result.supplier=best.name;
+   result.supplierHint="Lieferant automatisch aus dem Belegkopf vorgeschlagen ("+best.reason+"). Bitte prüfen.";
+  }else if(best&&best.score>=35){
+   result.supplierHint="Lieferant unsicher. Möglicher Name: "+best.name+". Bitte am Original prüfen und manuell eintragen.";
+  }
+ }
  // Prefer the invoice date over shipping/performance dates.
  const numeric=/(?:Rechnungsdatum|Belegdatum|Rechnungsdatum\s*\/\s*Datum)\s*[:\-]?\s*(\d{1,2})[.\/-](\d{1,2})[.\/-](20\d{2})/i.exec(flat);
  const named=/(?:Rechnungsdatum|Belegdatum)\s*[:\-]?\s*(\d{1,2})\.\s*(Januar|Februar|März|Maerz|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+(20\d{2})/i.exec(flat);
@@ -109,5 +122,8 @@ export function suggestFields(text:string):Suggestions{
    }
   }
  }
+ const recognized=[result.supplier,result.date,result.amount].filter(Boolean).length;
+ if(recognized===0)result.qualityHint="Keine Angaben sicher erkannt. Bitte Fotoqualität prüfen oder Felder manuell ausfüllen.";
+ else if(recognized<3)result.qualityHint="Nur "+recognized+" von 3 Pflichtangaben vorgeschlagen. Fehlende Werte am Original prüfen.";
  return result;
 }
